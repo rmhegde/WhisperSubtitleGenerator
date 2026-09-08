@@ -19,35 +19,21 @@ public sealed class AudioExtractor
 
     public AudioExtractor(string? ffmpegPath = null)
     {
-        _ffmpegPath = ffmpegPath ?? "ffmpeg";
+        // Resolve through the locator rather than assuming the bare name works. That covers the
+        // app-local copy we may have downloaded, and known install locations that PATH has not
+        // propagated to this process yet.
+        var found = FfmpegLocator.Locate(ffmpegPath);
+        _ffmpegPath = found.Found ? found.Path : (ffmpegPath ?? "ffmpeg");
     }
 
     /// <summary>
     /// True when ffmpeg can actually be launched. Checked up front so the UI can report a missing
     /// dependency before the user picks files and waits, rather than failing mid-run.
     /// </summary>
-    public bool IsAvailable(out string? version)
-    {
-        version = null;
-        try
-        {
-            using var p = Process.Start(new ProcessStartInfo(_ffmpegPath, "-version")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            });
-            if (p is null) return false;
-            version = p.StandardOutput.ReadLine();
-            p.WaitForExit(10_000);
-            return p.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    public bool IsAvailable(out string? version) => FfmpegLocator.TryRun(_ffmpegPath, out version);
+
+    /// <summary>The ffmpeg this extractor will actually invoke - useful for logging.</summary>
+    public string FfmpegPath => _ffmpegPath;
 
     /// <summary>
     /// Decodes <paramref name="inputPath"/> to a temporary 16 kHz mono WAV and returns its path.

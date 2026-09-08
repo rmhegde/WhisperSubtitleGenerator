@@ -49,7 +49,11 @@ public sealed class SubtitleBurner
 {
     private readonly string _ffmpegPath;
 
-    public SubtitleBurner(string? ffmpegPath = null) => _ffmpegPath = ffmpegPath ?? "ffmpeg";
+    public SubtitleBurner(string? ffmpegPath = null)
+    {
+        var found = Audio.FfmpegLocator.Locate(ffmpegPath);
+        _ffmpegPath = found.Found ? found.Path : (ffmpegPath ?? "ffmpeg");
+    }
 
     /// <summary>
     /// Escapes a Windows path for use inside ffmpeg's <c>subtitles=</c> filter argument.

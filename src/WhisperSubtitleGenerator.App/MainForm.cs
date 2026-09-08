@@ -39,18 +39,90 @@ public partial class MainForm : Form
     /// </summary>
     private void CheckFfmpeg()
     {
-        if (new AudioExtractor().IsAvailable(out var version))
+        var found = FfmpegLocator.Locate();
+        if (found.Found)
         {
-            Log($"ffmpeg found: {version}");
+            Log($"ffmpeg ready ({found.Source}): {found.Version}");
             Log($"{WhisperLanguages.Count} languages available. Models cache to {WhisperModelCatalog.CacheDirectory}");
+            return;
+        }
+
+        Log("ffmpeg is required to read audio and video, and was not found.");
+        _startButton.Enabled = false;
+
+        // Offer to do it rather than telling the user to go away and read instructions. This is
+        // the one dependency that stops a first run dead.
+        var answer = MessageBox.Show(
+            this,
+            "ffmpeg is needed to read audio and video files, and it is not installed."
+            + Environment.NewLine + Environment.NewLine +
+            "Download it now? It is about 106 MB, goes into this app's own folder, and needs no "
+            + "administrator rights - nothing else on your PC is changed."
+            + Environment.NewLine + Environment.NewLine +
+            "Choose No if you would rather install it yourself.",
+            "One-time setup",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (answer == DialogResult.Yes)
+        {
+            _ = InstallFfmpegAsync();
         }
         else
         {
-            Log("ffmpeg NOT found on PATH. Install it and restart:");
-            Log("    winget install Gyan.FFmpeg");
-            Log("Audio cannot be decoded without it.");
-            _startButton.Enabled = false;
+            Log("Install it yourself with:  winget install Gyan.FFmpeg");
+            Log("Then restart the app, or press 'Check again'.");
         }
+    }
+
+    private async Task InstallFfmpegAsync()
+    {
+        _installButton.Enabled = false;
+        _startButton.Enabled = false;
+        _progress.Style = ProgressBarStyle.Continuous;
+
+        // Report only whole-percent changes; a callback per 80 KB block would put a thousand lines
+        // in the log for one download.
+        var progress = new Progress<InstallProgress>(p =>
+        {
+            Log(p.ToString());
+            if (p.Percent >= 0) _progress.Value = Math.Min(100, p.Percent);
+        });
+
+        try
+        {
+            var path = await new FfmpegInstaller().InstallAsync(progress);
+            Log($"ffmpeg installed to {path}");
+            Log("Ready. Add files and press Generate subtitles.");
+            _startButton.Enabled = _items.Count > 0;
+            _installButton.Visible = false;
+        }
+        catch (Exception ex)
+        {
+            Log("Automatic install failed: " + ex.Message);
+            Log("Install it yourself with:  winget install Gyan.FFmpeg");
+            _installButton.Enabled = true;
+        }
+        finally
+        {
+            _progress.Value = 0;
+        }
+    }
+
+    private async void OnInstallFfmpeg(object? sender, EventArgs e)
+    {
+        // Re-check first: the user may have installed it manually since startup, and a system
+        // install that updated PATH is invisible to this already-running process - the locator
+        // probes real directories precisely so that still works without a restart.
+        var found = FfmpegLocator.Locate();
+        if (found.Found)
+        {
+            Log($"ffmpeg found ({found.Source}): {found.Version}");
+            _startButton.Enabled = _items.Count > 0;
+            _installButton.Visible = false;
+            return;
+        }
+        await InstallFfmpegAsync();
     }
 
     // ---- file queue -------------------------------------------------------------------------
@@ -305,6 +377,7 @@ public partial class MainForm : Form
         _translateCheck.Enabled = !running;
         _skipExistingCheck.Enabled = !running;
         _burnCheck.Enabled    = !running;
+        _installButton.Enabled = !running;
         _burnModeBox.Enabled  = !running && _burnCheck.Checked;
         _fileList.AllowDrop   = !running;
         if (!running) _progress.Value = 0;

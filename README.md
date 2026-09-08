@@ -50,25 +50,33 @@ no per-minute charge, and it keeps working with the network off once a model is 
 **1. Install the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)**
 (the *Desktop* one — not the plain runtime).
 
-**2. Install ffmpeg** and make sure it is on `PATH`:
+**2. Run the app.** That is it.
+
+On first launch it checks for **ffmpeg**, which it needs to read audio and video. If it is missing,
+the app offers to fetch it for you:
+
+> ffmpeg is needed to read audio and video files, and it is not installed.
+> Download it now? It is about 106 MB, goes into this app's own folder, and needs no
+> administrator rights — nothing else on your PC is changed.
+
+Say yes and it downloads, extracts and verifies a current ffmpeg build into
+`%LOCALAPPDATA%\WhisperSubtitleGeneratorfmpeg`. Nothing is installed system-wide, no PATH is
+touched, and removing it later is deleting that folder.
+
+### Prefer to install ffmpeg yourself?
+
+Say No and use whichever you like:
 
 ```powershell
 winget install Gyan.FFmpeg
 ```
 
-Close and reopen your terminal afterwards, then check:
+The app finds a system install automatically. It also probes the usual install locations directly,
+**so you do not need to restart it** — a program that is already running keeps the `PATH` it started
+with, which is the usual reason a freshly installed ffmpeg still looks "missing". Press
+**Set up ffmpeg** to re-check.
 
-```powershell
-ffmpeg -version
-```
-
-**3. Build the app** (see [Building from source](#building-from-source)) and run
-`WhisperSubtitleGenerator.exe`.
-
-The app checks for ffmpeg at startup and says so in the log if it is missing, rather than failing
-later once you have queued files.
-
----
+To point at a specific binary, set `WSG_FFMPEG` to its full path; that overrides everything else.
 
 ## Quick start
 
@@ -189,9 +197,10 @@ cue on some hardware players.
 
 ## Troubleshooting
 
-**"ffmpeg NOT found on PATH"**
-Install it (`winget install Gyan.FFmpeg`), then **restart the app** — a running program does not pick
-up `PATH` changes.
+**ffmpeg is missing**
+Press **Set up ffmpeg** and let the app download it — no admin rights needed. If you would rather
+install it yourself, `winget install Gyan.FFmpeg` then press **Set up ffmpeg** to re-check; the app
+probes real install locations, so a restart is not required.
 
 **The first run sits on "Downloading the model"**
 Expected. The model is 75 MB – 2.9 GB depending on your choice, downloaded once. Later runs skip it.
@@ -226,7 +235,7 @@ git clone https://github.com/rmhegde/WhisperSubtitleGenerator.git
 cd WhisperSubtitleGenerator
 
 dotnet build -c Release        # build everything
-dotnet test                    # 54 tests, no ffmpeg or network needed
+dotnet test                    # 68 tests, no ffmpeg or network needed
 dotnet run --project src/WhisperSubtitleGenerator.App
 ```
 
@@ -235,6 +244,8 @@ dotnet run --project src/WhisperSubtitleGenerator.App
 ```
 src/WhisperSubtitleGenerator.Core/    net8.0 — no UI dependency, reusable
   Audio/AudioExtractor.cs               ffmpeg -> 16 kHz mono PCM
+  Audio/FfmpegLocator.cs                finds ffmpeg: override, app-local, PATH, known dirs
+  Audio/FfmpegInstaller.cs              one-click download into the app's own folder
   Models/WhisperModelCatalog.cs         model choices, download + cache
   Subtitles/SubtitleWriter.cs           SRT / WebVTT rendering
   Transcription/SubtitleGenerator.cs    one file, end to end
@@ -242,7 +253,7 @@ src/WhisperSubtitleGenerator.Core/    net8.0 — no UI dependency, reusable
   Transcription/WhisperLanguages.cs     all 100 languages
   Video/SubtitleBurner.cs               burn-in and soft-mux via ffmpeg
 src/WhisperSubtitleGenerator.App/     net8.0-windows — WinForms UI
-tests/WhisperSubtitleGenerator.Tests/ 54 tests
+tests/WhisperSubtitleGenerator.Tests/ 68 tests
 ```
 
 The core targets plain `net8.0`, **not** `net8.0-windows`, so a CLI or a cross-platform front end can

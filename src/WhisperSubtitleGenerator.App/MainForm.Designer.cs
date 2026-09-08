@@ -20,6 +20,7 @@ partial class MainForm
     private CheckBox _vttCheck = null!;
     private TextBox _outputBox = null!;
     private Button _outputButton = null!;
+    private Button _installButton = null!;
     private Button _startButton = null!;
     private Button _cancelButton = null!;
     private ProgressBar _progress = null!;
@@ -51,6 +52,7 @@ partial class MainForm
         _vttCheck          = new CheckBox();
         _outputBox         = new TextBox();
         _outputButton      = new Button();
+        _installButton     = new Button();
         _startButton       = new Button();
         _cancelButton      = new Button();
         _progress          = new ProgressBar();
@@ -162,7 +164,11 @@ partial class MainForm
         _cancelButton.Width = 90; _cancelButton.Height = 32; _cancelButton.Enabled = false;
         _cancelButton.Click += OnCancel;
 
-        _progress.Left = 280; _progress.Top = 384; _progress.Width = 374; _progress.Height = 20;
+        _installButton.Text = "Set up ffmpeg"; _installButton.Left = 280; _installButton.Top = 378;
+        _installButton.Width = 120; _installButton.Height = 32;
+        _installButton.Click += OnInstallFfmpeg;
+
+        _progress.Left = 408; _progress.Top = 384; _progress.Width = 246; _progress.Height = 20;
         _progress.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
         _logBox.Left = 12; _logBox.Top = 422; _logBox.Width = 642; _logBox.Height = 190;
@@ -185,7 +191,7 @@ partial class MainForm
             modelLabel, _modelBox, langLabel, _languageBox, _translateCheck, _skipExistingCheck,
             _burnCheck, _burnModeBox, formatLabel, _srtCheck, _vttCheck,
             folderLabel, _outputBox, _outputButton,
-            _startButton, _cancelButton, _progress, _logBox
+            _startButton, _cancelButton, _installButton, _progress, _logBox
         });
         Text = "Whisper Subtitle Generator";
         ResumeLayout(false);
