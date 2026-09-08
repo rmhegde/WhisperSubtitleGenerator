@@ -297,6 +297,16 @@ construction, which is where the fiddly bugs live.
 
 ---
 
+## Supporting this project
+
+It is free and MIT licensed, and stays that way. If it saves you time and you want to chip in,
+sponsorship links are in the repo sidebar once they are set up — see
+[`.github/FUNDING.yml`](.github/FUNDING.yml).
+
+Contributions of code, bug reports and documentation are just as welcome, and often more useful.
+
+---
+
 ## Licence
 
 **MIT** — see [LICENSE](LICENSE).

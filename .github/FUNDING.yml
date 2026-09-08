@@ -1,0 +1,29 @@
+# Puts a "Sponsor" button at the top of the repo and in the sidebar.
+#
+# Everything below is COMMENTED OUT on purpose. A FUNDING.yml pointing at an account that has
+# not actually enrolled produces a Sponsor button that leads nowhere, which looks worse than
+# having no button at all. Enrol first, then uncomment the line you want.
+#
+# ---------------------------------------------------------------------------------------------
+# GitHub Sponsors - the one to start with
+#   Available in India since May 2022 (no waitlist). Needs a bank account and tax residence in
+#   India. GitHub takes no cut on personal accounts, and payouts go through Stripe Connect.
+#   Enrol at: https://github.com/sponsors
+#
+#   Use the ACCOUNT that should receive the money. That is a decision worth making deliberately:
+#   a personal account and an organisation are taxed differently, and only a personal account
+#   gets the zero-fee treatment.
+#
+# github: [ram-wiziiot]
+#
+# ---------------------------------------------------------------------------------------------
+# One-off tips rather than recurring sponsorship. Both work fine from India and are quicker to
+# set up than Sponsors, at the cost of a platform fee.
+#
+# ko_fi: yourname
+# buy_me_a_coffee: yourname
+#
+# ---------------------------------------------------------------------------------------------
+# Anything else - a payment page, UPI link, or your company's page. Up to four URLs.
+#
+# custom: ["https://example.com/donate"]
