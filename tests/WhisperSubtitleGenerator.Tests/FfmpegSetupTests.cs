@@ -120,14 +120,16 @@ public class FfmpegInstallerTests
     }
 
     [Fact]
-    public void Install_returns_immediately_when_ffmpeg_is_already_available()
+    public async Task Install_returns_immediately_when_ffmpeg_is_already_available()
     {
         // Guarded so it only asserts on a machine that HAS ffmpeg; elsewhere it would try a 106 MB
         // download, which is not something a unit test should ever do.
         var existing = FfmpegLocator.Locate();
         if (!existing.Found) return;
 
-        var path = new FfmpegInstaller().InstallAsync().GetAwaiter().GetResult();
+        // Awaited rather than blocked on: .GetAwaiter().GetResult() in a test can deadlock, and
+        // xUnit's analyzer flags it (xUnit1031).
+        var path = await new FfmpegInstaller().InstallAsync();
         Assert.Equal(existing.Path, path);
     }
 }
