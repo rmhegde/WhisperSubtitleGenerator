@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- net8.0, NOT net8.0-windows. The CLI is the proof that Core is portable: this project
+         builds and runs on Linux and macOS as-is. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>WhisperSubtitleGenerator.Cli</RootNamespace>
+    <AssemblyName>wsg</AssemblyName>
+    <Product>Whisper Subtitle Generator CLI</Product>
+    <Version>0.1.0</Version>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WhisperSubtitleGenerator.Core\WhisperSubtitleGenerator.Core.csproj" />
+  </ItemGroup>
+
+</Project>

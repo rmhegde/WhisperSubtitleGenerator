@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\WhisperSubtitleGenerator.Core\WhisperSubtitleGenerator.Core.csproj" />
+    <ProjectReference Include="..\..\src\WhisperSubtitleGenerator.Cli\WhisperSubtitleGenerator.Cli.csproj" />
   </ItemGroup>
 
 </Project>

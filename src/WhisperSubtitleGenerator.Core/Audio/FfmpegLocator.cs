@@ -40,7 +40,12 @@ public static class FfmpegLocator
     /// <summary>Set this to point at a specific binary; overrides everything else.</summary>
     public const string OverrideVariable = "WSG_FFMPEG";
 
-    private const string ExeName = "ffmpeg.exe";
+    /// <summary>
+    /// "ffmpeg.exe" on Windows, "ffmpeg" elsewhere. The Core library targets plain net8.0 so it
+    /// can back a cross-platform front end; hardcoding the .exe suffix would make it Windows-only
+    /// for no reason.
+    /// </summary>
+    private static string ExeName => OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
 
     /// <summary>Where <see cref="FfmpegInstaller"/> puts a downloaded copy.</summary>
     public static string AppLocalDirectory => System.IO.Path.Combine(
@@ -94,6 +99,15 @@ public static class FfmpegLocator
     /// </summary>
     private static IEnumerable<string> KnownLocations()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            // On Linux and macOS a package manager put ffmpeg on PATH, which the previous
+            // candidate already covers. These are the two spots a manual install still lands.
+            yield return "/usr/local/bin/ffmpeg";
+            yield return "/opt/homebrew/bin/ffmpeg";
+            yield break;
+        }
+
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var wingetPackages = System.IO.Path.Combine(local, "Microsoft", "WinGet", "Packages");
 

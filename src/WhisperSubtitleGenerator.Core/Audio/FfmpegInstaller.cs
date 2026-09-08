@@ -54,6 +54,15 @@ public sealed class FfmpegInstaller
         var existing = FfmpegLocator.Locate();
         if (existing.Found) return existing.Path;
 
+        // The download is a Windows build. On Linux and macOS the package manager is both easier
+        // and correct, so point there instead of fetching something that will not run.
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new FfmpegInstallException(
+                "Automatic install is Windows-only. Install ffmpeg with your package manager: " +
+                "'brew install ffmpeg' on macOS, or 'sudo apt install ffmpeg' on Debian/Ubuntu.");
+        }
+
         Directory.CreateDirectory(FfmpegLocator.AppLocalDirectory);
         var zipPath = Path.Combine(FfmpegLocator.AppLocalDirectory, "ffmpeg-download.zip");
 

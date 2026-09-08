@@ -8,7 +8,8 @@ no per-minute charge, and it keeps working with the network off once a model is 
 
 [![build](https://github.com/rmhegde/WhisperSubtitleGenerator/actions/workflows/build.yml/badge.svg)](https://github.com/rmhegde/WhisperSubtitleGenerator/actions/workflows/build.yml)
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![platform](https://img.shields.io/badge/GUI-Windows-lightgrey)
+![cli](https://img.shields.io/badge/CLI-Windows%20%7C%20Linux%20%7C%20macOS-brightgreen)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 
 ---
@@ -154,6 +155,48 @@ Use this for a personal library.
 
 ---
 
+## Command line
+
+There is a CLI as well as the desktop app: **`wsg`**. It runs on **Windows, Linux and macOS** —
+it targets plain `net8.0` with no UI framework, so the whole transcription pipeline is portable
+even though the WinForms app is Windows-only.
+
+```bash
+wsg lecture.mp4                              # one file, defaults
+wsg *.mkv -m small -l en -f both             # a batch, both formats
+wsg ./season1 -r --skip-existing -o ./subs   # a folder tree, skip what is done
+wsg interview.mov -l hi --translate          # Hindi in, English subtitles out
+wsg promo.mp4 --burn hard                    # burn into the video
+```
+
+| | |
+|---|---|
+| `-m, --model` | `tiny` `base` `small` `medium` `largev3` (default `base`) |
+| `-l, --language` | ISO code or `auto` (default `auto`) |
+| `-t, --translate` | translate to English |
+| `-f, --format` | `srt` `vtt` `both` (default `srt`) |
+| `-o, --output` | output folder (default: beside each source) |
+| `--burn [hard\|soft]` | write subtitles into the video |
+| `--skip-existing` | skip files that already have subtitles |
+| `-r, --recursive` | search folders recursively |
+| `-q, --quiet` | no progress output |
+| `--list-models` · `--list-languages` | show what is available |
+
+**It pipes cleanly.** Progress goes to **stderr**, result paths to **stdout**, so:
+
+```bash
+wsg ./talks -r | xargs -I{} cp {} ~/subtitles/     # act on the files it produced
+wsg clip.mp4 2>/dev/null                           # silence the progress
+```
+
+Exit codes: **0** all good · **1** usage error or missing prerequisite · **2** ran, some files failed.
+
+```bash
+dotnet run --project src/WhisperSubtitleGenerator.Cli -- --help
+```
+
+---
+
 ## Batch processing
 
 Built for doing a season of episodes in one go.
@@ -243,7 +286,7 @@ git clone https://github.com/rmhegde/WhisperSubtitleGenerator.git
 cd WhisperSubtitleGenerator
 
 dotnet build -c Release        # build everything
-dotnet test                    # 68 tests, no ffmpeg or network needed
+dotnet test                    # 92 tests, no ffmpeg or network needed
 dotnet run --project src/WhisperSubtitleGenerator.App
 ```
 
@@ -273,12 +316,15 @@ src/WhisperSubtitleGenerator.Core/    net8.0 — no UI dependency, reusable
   Transcription/BatchProcessor.cs       the queue, per-file state
   Transcription/WhisperLanguages.cs     all 100 languages
   Video/SubtitleBurner.cs               burn-in and soft-mux via ffmpeg
+src/WhisperSubtitleGenerator.Cli/     net8.0 — the wsg command line, runs anywhere
 src/WhisperSubtitleGenerator.App/     net8.0-windows — WinForms UI
-tests/WhisperSubtitleGenerator.Tests/ 68 tests
+tests/WhisperSubtitleGenerator.Tests/ 92 tests
 ```
 
-The core targets plain `net8.0`, **not** `net8.0-windows`, so a CLI or a cross-platform front end can
-reuse the whole pipeline without dragging in WinForms.
+The core targets plain `net8.0`, **not** `net8.0-windows` — which is what makes the `wsg` CLI
+cross-platform. Only the WinForms app is Windows-only; `Core`, `Cli` and the tests build and run
+on Linux and macOS too. Install ffmpeg with your package manager there
+(`brew install ffmpeg`, `sudo apt install ffmpeg`) — the one-click download is Windows-only.
 
 ---
 
@@ -318,7 +364,7 @@ Issues and pull requests welcome. Good first things to pick up:
 
 - [ ] Expose subtitle font size, colour and position in the UI (already in `BurnOptions`)
 - [ ] Remember the last model, language and output folder between runs
-- [ ] A CLI front end over the same core (the core is already UI-free)
+- [ ] An Avalonia or MAUI GUI so the desktop app runs on Linux and macOS too
 - [ ] Word-level timestamps and karaoke-style highlighting
 - [ ] An editor to fix cues before writing
 - [ ] Speaker diarization
