@@ -6,7 +6,7 @@ Speech recognition runs entirely locally through [whisper.cpp](https://github.co
 (via [Whisper.net](https://github.com/sandrohanea/whisper.net)). No API key, no account, no upload,
 no per-minute charge, and it keeps working with the network off once a model is cached.
 
-[![build](https://github.com/ram-wiziiot/WhisperSubtitleGenerator/actions/workflows/build.yml/badge.svg)](https://github.com/ram-wiziiot/WhisperSubtitleGenerator/actions/workflows/build.yml)
+[![build](https://github.com/rmhegde/WhisperSubtitleGenerator/actions/workflows/build.yml/badge.svg)](https://github.com/rmhegde/WhisperSubtitleGenerator/actions/workflows/build.yml)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
@@ -222,7 +222,7 @@ UI yet — [contributions welcome](#contributing).
 Needs the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or newer.
 
 ```bash
-git clone https://github.com/ram-wiziiot/WhisperSubtitleGenerator.git
+git clone https://github.com/rmhegde/WhisperSubtitleGenerator.git
 cd WhisperSubtitleGenerator
 
 dotnet build -c Release        # build everything
