@@ -63,7 +63,7 @@ the app offers to fetch it:
 > administrator rights — nothing else on your PC is changed.
 
 Say yes and it downloads, extracts and verifies a current ffmpeg build into
-`%LOCALAPPDATA%\WhisperSubtitleGeneratorfmpeg`. Nothing is installed system-wide, no PATH is
+`%LOCALAPPDATA%\WhisperSubtitleGenerator\ffmpeg`. Nothing is installed system-wide, no PATH is
 touched, and removing it later is deleting that folder.
 
 ### Prefer to install ffmpeg yourself?
