@@ -60,8 +60,7 @@ src/WhisperSubtitleGenerator.Core/   net8.0    — no UI dependency, reusable
   Audio/AudioExtractor.cs                        ffmpeg -> 16 kHz mono PCM
   Models/WhisperModelCatalog.cs                  model choices, download + cache
   Subtitles/SubtitleWriter.cs                    SRT / WebVTT rendering
-  Transcription/SubtitleGenerator.cs             ties it together
-src/WhisperSubtitleGenerator.App/    net8.0-windows — WinForms UI
+  Transcription/SubtitleGenerator.cs             one file, end to end
   Transcription/BatchProcessor.cs                sequential queue, per-file state
   Transcription/WhisperLanguages.cs              all 100 languages
 src/WhisperSubtitleGenerator.App/    net8.0-windows — WinForms UI
