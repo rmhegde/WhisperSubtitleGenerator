@@ -10,13 +10,19 @@ cost, and it works offline once a model is cached.
 
 ## What it does
 
-- Point it at one file or a batch, press **Generate subtitles**
-- Picks up any format ffmpeg can read — `.mp4`, `.mkv`, `.mov`, `.webm`, `.mp3`, `.wav`, `.m4a`, `.flac`, …
+- **Batch queue** — drag and drop files *or whole folders* onto the window, add a folder
+  recursively, or pick files individually. Each row shows its own live status (queued → working →
+  done / FAILED), the cue count and how long it took.
+- **All 100 languages** Whisper supports, not a hand-picked handful. The picker autocompletes, so
+  typing `kan` jumps straight to Kannada.
+- **Translate to English** in the same pass instead of transcribing in the source language
+- **Skip files that already have subtitles**, so re-running a 200-file batch after adding one new
+  episode does not redo 200 transcriptions
 - Writes `.srt`, `.vtt`, or both, beside the source file or into a folder you choose
-- **Transcribe** in the source language, or **translate to English** in one pass
 - Five model sizes, from ~75 MB (fast, rough) to ~2.9 GB (slow, best)
 - Cues appear in the log as they are recognised, so a long file shows progress rather than freezing
-- Cancel mid-run; a file that fails does not stop the rest of the batch
+- Cancel mid-run; a file that fails is marked and the batch carries on
+- Press **Generate subtitles** again to re-run the whole queue
 
 ## Requirements
 
@@ -56,7 +62,10 @@ src/WhisperSubtitleGenerator.Core/   net8.0    — no UI dependency, reusable
   Subtitles/SubtitleWriter.cs                    SRT / WebVTT rendering
   Transcription/SubtitleGenerator.cs             ties it together
 src/WhisperSubtitleGenerator.App/    net8.0-windows — WinForms UI
-tests/WhisperSubtitleGenerator.Tests/            18 tests over the formatting logic
+  Transcription/BatchProcessor.cs                sequential queue, per-file state
+  Transcription/WhisperLanguages.cs              all 100 languages
+src/WhisperSubtitleGenerator.App/    net8.0-windows — WinForms UI
+tests/WhisperSubtitleGenerator.Tests/            37 tests over the formatting and batch logic
 ```
 
 The core is deliberately UI-free and targets plain `net8.0`, so a CLI or a cross-platform front end
@@ -67,6 +76,11 @@ can be built on it without touching the transcription code.
 **Whisper's input format is not negotiable.** It requires 16 kHz, mono, 16-bit signed PCM. Feeding it
 44.1 kHz or stereo does not raise an error — it returns confident, wrong text, which is much harder to
 diagnose than a crash. Those constants live in `AudioExtractor` and should stay hardcoded.
+
+**Batches run one file at a time, on purpose.** Whisper already saturates the CPU on a single
+file, so running several at once makes the whole batch *slower* while multiplying peak memory — the
+large model alone wants several GB. Sequential also keeps the log readable and cancellation
+predictable.
 
 **SRT and VTT differ in ways that fail silently.** SRT puts a **comma** before the milliseconds,
 WebVTT a **period**; SRT numbers every cue, VTT does not; VTT must open with `WEBVTT`. Give a player
@@ -82,7 +96,6 @@ stray characters in the first cue on some players).
 
 Ideas, in rough order of usefulness:
 
-- [ ] Drag-and-drop onto the file list
 - [ ] Remember the last model, language and output folder between runs
 - [ ] Burn-in / hard-sub via ffmpeg
 - [ ] Word-level timestamps and karaoke-style highlighting

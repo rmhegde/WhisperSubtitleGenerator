@@ -1,4 +1,3 @@
-using Whisper.net.Ggml;
 using WhisperSubtitleGenerator.Core.Audio;
 using WhisperSubtitleGenerator.Core.Models;
 using WhisperSubtitleGenerator.Core.Subtitles;
@@ -8,36 +7,52 @@ namespace WhisperSubtitleGenerator.App;
 
 public partial class MainForm : Form
 {
-    private readonly List<string> _files = new();
+    private readonly List<BatchItem> _items = new();
     private CancellationTokenSource? _cts;
+
+    private static readonly string[] MediaExtensions =
+    {
+        ".mp4", ".mkv", ".avi", ".mov", ".webm", ".wmv", ".flv", ".m4v",
+        ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".wma", ".opus"
+    };
 
     public MainForm()
     {
         InitializeComponent();
+
         _modelBox.Items.AddRange(WhisperModelCatalog.All.ToArray());
         _modelBox.SelectedItem = WhisperModelCatalog.Default;
+
+        // All 100 languages, auto-detect first. AutoComplete makes a list this long usable:
+        // typing "kan" jumps to Kannada rather than scrolling.
+        _languageBox.Items.AddRange(WhisperLanguages.All.ToArray());
         _languageBox.SelectedIndex = 0;
-        UpdateButtons();
+
+        UpdateUi();
         CheckFfmpeg();
     }
 
     /// <summary>
-    /// ffmpeg is a hard requirement and its absence is the single most likely reason a first run
-    /// fails. Say so up front, in the window, rather than letting the user queue files and wait.
+    /// ffmpeg is a hard requirement and its absence is the likeliest reason a first run fails.
+    /// Say so in the window at startup rather than after the user has queued files and waited.
     /// </summary>
     private void CheckFfmpeg()
     {
         if (new AudioExtractor().IsAvailable(out var version))
         {
             Log($"ffmpeg found: {version}");
+            Log($"{WhisperLanguages.Count} languages available. Models cache to {WhisperModelCatalog.CacheDirectory}");
         }
         else
         {
-            Log("ffmpeg NOT found on PATH. Install it (winget install Gyan.FFmpeg) and restart - " +
-                "audio cannot be decoded without it.");
+            Log("ffmpeg NOT found on PATH. Install it and restart:");
+            Log("    winget install Gyan.FFmpeg");
+            Log("Audio cannot be decoded without it.");
             _startButton.Enabled = false;
         }
     }
+
+    // ---- file queue -------------------------------------------------------------------------
 
     private void OnAddFiles(object? sender, EventArgs e)
     {
@@ -45,24 +60,135 @@ public partial class MainForm : Form
         {
             Multiselect = true,
             Title = "Choose audio or video files",
-            Filter = "Media files|*.mp4;*.mkv;*.avi;*.mov;*.webm;*.mp3;*.wav;*.m4a;*.flac;*.ogg;*.aac|All files|*.*"
+            Filter = "Media files|" + string.Join(";", MediaExtensions.Select(x => "*" + x)) + "|All files|*.*"
         };
+        if (dlg.ShowDialog(this) == DialogResult.OK) AddFiles(dlg.FileNames);
+    }
+
+    private void OnAddFolder(object? sender, EventArgs e)
+    {
+        using var dlg = new FolderBrowserDialog { Description = "Add every media file in a folder" };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
-        foreach (var f in dlg.FileNames)
+        var found = Directory.EnumerateFiles(dlg.SelectedPath, "*", SearchOption.AllDirectories)
+                             .Where(IsMedia)
+                             .ToArray();
+        if (found.Length == 0)
         {
-            if (_files.Contains(f, StringComparer.OrdinalIgnoreCase)) continue;
-            _files.Add(f);
-            _fileList.Items.Add(Path.GetFileName(f));
+            MessageBox.Show(this, "No media files found in that folder.", "Nothing added",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
         }
-        UpdateButtons();
+        AddFiles(found);
+    }
+
+    private static bool IsMedia(string path) =>
+        MediaExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
+
+    private void AddFiles(IEnumerable<string> paths)
+    {
+        int added = 0, duplicates = 0;
+        foreach (var p in paths)
+        {
+            if (_items.Any(i => string.Equals(i.Path, p, StringComparison.OrdinalIgnoreCase)))
+            {
+                duplicates++;
+                continue;
+            }
+            var item = new BatchItem(p);
+            _items.Add(item);
+            _fileList.Items.Add(MakeRow(item));
+            added++;
+        }
+        if (added > 0) Log($"Added {added} file(s).");
+        if (duplicates > 0) Log($"Skipped {duplicates} already in the queue.");
+        UpdateUi();
+    }
+
+    private static ListViewItem MakeRow(BatchItem item)
+    {
+        var row = new ListViewItem(item.FileName) { Tag = item };
+        row.SubItems.Add(StateText(item.State));
+        row.SubItems.Add("");
+        return row;
+    }
+
+    private static string StateText(BatchItemState s) => s switch
+    {
+        BatchItemState.Pending   => "queued",
+        BatchItemState.Running   => "working...",
+        BatchItemState.Done      => "done",
+        BatchItemState.Failed    => "FAILED",
+        BatchItemState.Skipped   => "skipped",
+        BatchItemState.Cancelled => "cancelled",
+        _ => ""
+    };
+
+    private static Color StateColour(BatchItemState s) => s switch
+    {
+        BatchItemState.Done    => Color.FromArgb(0, 128, 0),
+        BatchItemState.Failed  => Color.FromArgb(192, 0, 0),
+        BatchItemState.Running => Color.FromArgb(0, 80, 200),
+        BatchItemState.Skipped => Color.Gray,
+        _ => SystemColors.WindowText
+    };
+
+    /// <summary>Refreshes one row in place, so a long batch updates without a full rebuild.</summary>
+    private void RefreshRow(BatchItem item)
+    {
+        if (_fileList.InvokeRequired) { _fileList.BeginInvoke(() => RefreshRow(item)); return; }
+
+        foreach (ListViewItem row in _fileList.Items)
+        {
+            if (!ReferenceEquals(row.Tag, item)) continue;
+            row.SubItems[1].Text = StateText(item.State);
+            row.SubItems[2].Text = item.Message ?? "";
+            row.ForeColor = StateColour(item.State);
+            row.EnsureVisible();
+            break;
+        }
+    }
+
+    private void OnRemoveSelected(object? sender, EventArgs e)
+    {
+        foreach (ListViewItem row in _fileList.SelectedItems.Cast<ListViewItem>().ToList())
+        {
+            if (row.Tag is BatchItem item) _items.Remove(item);
+            _fileList.Items.Remove(row);
+        }
+        UpdateUi();
     }
 
     private void OnClearFiles(object? sender, EventArgs e)
     {
-        _files.Clear();
+        _items.Clear();
         _fileList.Items.Clear();
-        UpdateButtons();
+        UpdateUi();
+    }
+
+    // Drag-and-drop: the fastest way to queue a folder of episodes.
+    private void OnDragEnter(object? sender, DragEventArgs e)
+    {
+        if (e.Data?.GetDataPresent(DataFormats.FileDrop) == true)
+            e.Effect = DragDropEffects.Copy;
+    }
+
+    private void OnDragDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Data?.GetData(DataFormats.FileDrop) is not string[] dropped) return;
+
+        var files = new List<string>();
+        foreach (var p in dropped)
+        {
+            // Dropping a folder should queue what is inside it rather than being ignored.
+            if (Directory.Exists(p))
+                files.AddRange(Directory.EnumerateFiles(p, "*", SearchOption.AllDirectories).Where(IsMedia));
+            else if (IsMedia(p))
+                files.Add(p);
+        }
+
+        if (files.Count == 0) { Log("Nothing dropped that looks like media."); return; }
+        AddFiles(files);
     }
 
     private void OnChooseOutput(object? sender, EventArgs e)
@@ -71,9 +197,11 @@ public partial class MainForm : Form
         if (dlg.ShowDialog(this) == DialogResult.OK) _outputBox.Text = dlg.SelectedPath;
     }
 
+    // ---- run --------------------------------------------------------------------------------
+
     private async void OnStart(object? sender, EventArgs e)
     {
-        if (_files.Count == 0) return;
+        if (_items.Count == 0) return;
 
         var formats = new List<SubtitleFormat>();
         if (_srtCheck.Checked) formats.Add(SubtitleFormat.Srt);
@@ -85,52 +213,51 @@ public partial class MainForm : Form
             return;
         }
 
+        var language = (WhisperLanguage)_languageBox.SelectedItem!;
         var options = new TranscriptionOptions
         {
             Model = ((ModelChoice)_modelBox.SelectedItem!).Type,
-            Language = _languageBox.SelectedIndex == 0 ? "auto" : _languageBox.Text.Split(' ')[0],
+            Language = language.Code,
             TranslateToEnglish = _translateCheck.Checked,
             Formats = formats,
             OutputDirectory = string.IsNullOrWhiteSpace(_outputBox.Text) ? null : _outputBox.Text
         };
 
-        _cts = new CancellationTokenSource();
-        SetRunning(true);
-
-        var status = new Progress<string>(Log);
-        var generator = new Core.Transcription.SubtitleGenerator();
-        int done = 0, failed = 0;
-
-        foreach (var file in _files.ToList())
+        // Re-queue anything from a previous run so Start means "run all of these" again.
+        foreach (var item in _items.Where(i => i.State != BatchItemState.Pending))
         {
-            if (_cts.IsCancellationRequested) break;
-            try
-            {
-                Log($"--- {Path.GetFileName(file)} ---");
-                var result = await generator.GenerateAsync(
-                    file, options, status,
-                    onSegment: s => BeginInvoke(() => Log($"  [{s.Start:hh\\:mm\\:ss}] {s.NormalizedText}")),
-                    ct: _cts.Token);
-
-                Log($"Done in {result.Elapsed.TotalSeconds:F1}s - {result.Segments.Count} cues -> " +
-                    string.Join(", ", result.OutputPaths.Select(Path.GetFileName)));
-                done++;
-            }
-            catch (OperationCanceledException)
-            {
-                Log("Cancelled.");
-                break;
-            }
-            catch (Exception ex)
-            {
-                // One bad file must not stop the queue - a batch of 20 should not die on file 3.
-                Log($"FAILED: {ex.Message}");
-                failed++;
-            }
-            _progress.Value = Math.Min(100, (int)((done + failed) * 100.0 / _files.Count));
+            item.Reset();
+            RefreshRow(item);
         }
 
-        Log($"Finished. {done} succeeded, {failed} failed.");
+        _cts = new CancellationTokenSource();
+        SetRunning(true);
+        Log($"Starting {_items.Count} file(s) - {((ModelChoice)_modelBox.SelectedItem!).DisplayName} model, " +
+            $"{language}{(_translateCheck.Checked ? ", translating to English" : "")}.");
+
+        int completed = 0;
+        var batch = new BatchProcessor();
+
+        var summary = await batch.RunAsync(
+            _items,
+            options,
+            skipExisting: _skipExistingCheck.Checked,
+            status: new Progress<string>(Log),
+            onItemChanged: item =>
+            {
+                RefreshRow(item);
+                if (item.State is BatchItemState.Done or BatchItemState.Failed or BatchItemState.Skipped)
+                {
+                    completed++;
+                    BeginInvoke(() => _progress.Value = Math.Min(100, completed * 100 / Math.Max(1, _items.Count)));
+                }
+            },
+            onSegment: s => Log($"    {s.Start:hh\\:mm\\:ss} {s.NormalizedText}"),
+            ct: _cts.Token);
+
+        Log($"Finished in {summary.Elapsed.TotalSeconds:F1}s - " +
+            $"{summary.Done} done, {summary.Failed} failed, {summary.Skipped} skipped.");
+
         SetRunning(false);
         _cts?.Dispose();
         _cts = null;
@@ -139,26 +266,37 @@ public partial class MainForm : Form
     private void OnCancel(object? sender, EventArgs e)
     {
         _cts?.Cancel();
-        Log("Cancelling after the current step...");
+        Log("Cancelling after the current file...");
+        _cancelButton.Enabled = false;
     }
+
+    // ---- state ------------------------------------------------------------------------------
 
     private void SetRunning(bool running)
     {
-        _startButton.Enabled = !running && _files.Count > 0;
+        _startButton.Enabled  = !running && _items.Count > 0;
         _cancelButton.Enabled = running;
-        _addButton.Enabled = !running;
-        _clearButton.Enabled = !running && _files.Count > 0;
-        _modelBox.Enabled = !running;
-        _languageBox.Enabled = !running;
+        _addButton.Enabled    = !running;
+        _addFolderButton.Enabled = !running;
+        _removeButton.Enabled = !running && _fileList.SelectedItems.Count > 0;
+        _clearButton.Enabled  = !running && _items.Count > 0;
+        _modelBox.Enabled     = !running;
+        _languageBox.Enabled  = !running;
+        _translateCheck.Enabled = !running;
+        _skipExistingCheck.Enabled = !running;
+        _fileList.AllowDrop   = !running;
         if (!running) _progress.Value = 0;
     }
 
-    private void UpdateButtons()
+    private void UpdateUi()
     {
-        _startButton.Enabled = _files.Count > 0;
-        _clearButton.Enabled = _files.Count > 0;
-        _fileCountLabel.Text = _files.Count == 1 ? "1 file" : $"{_files.Count} files";
+        _startButton.Enabled  = _items.Count > 0 && _cts is null;
+        _clearButton.Enabled  = _items.Count > 0 && _cts is null;
+        _removeButton.Enabled = _fileList.SelectedItems.Count > 0 && _cts is null;
+        _fileCountLabel.Text  = _items.Count == 1 ? "1 file queued" : $"{_items.Count} files queued";
     }
+
+    private void OnSelectionChanged(object? sender, EventArgs e) => UpdateUi();
 
     private void Log(string message)
     {

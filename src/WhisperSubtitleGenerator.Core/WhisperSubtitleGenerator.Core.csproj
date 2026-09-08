@@ -17,4 +17,10 @@
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- AllOutputsExist is the skip-existing rule and deserves tests, but it is an implementation
+         detail rather than API. Exposed to the test assembly instead of made public. -->
+    <InternalsVisibleTo Include="WhisperSubtitleGenerator.Tests" />
+  </ItemGroup>
+
 </Project>
