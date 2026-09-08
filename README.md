@@ -47,20 +47,23 @@ no per-minute charge, and it keeps working with the network off once a model is 
 
 ## Install
 
-**1. Install the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)**
-(the *Desktop* one — not the plain runtime).
+**Download the setup and run it.** That is the whole install.
 
-**2. Run the app.** That is it.
+> Releases: **https://github.com/rmhegde/WhisperSubtitleGenerator/releases**
+
+The installer is self-contained — **no .NET runtime to install first**, nothing else to set up. It
+installs per-user by default so **no administrator prompt appears**; choose an all-users install in
+the wizard if you prefer one.
 
 On first launch it checks for **ffmpeg**, which it needs to read audio and video. If it is missing,
-the app offers to fetch it for you:
+the app offers to fetch it:
 
 > ffmpeg is needed to read audio and video files, and it is not installed.
 > Download it now? It is about 106 MB, goes into this app's own folder, and needs no
 > administrator rights — nothing else on your PC is changed.
 
 Say yes and it downloads, extracts and verifies a current ffmpeg build into
-`%LOCALAPPDATA%\WhisperSubtitleGenerator\ffmpeg`. Nothing is installed system-wide, no PATH is
+`%LOCALAPPDATA%\WhisperSubtitleGeneratorfmpeg`. Nothing is installed system-wide, no PATH is
 touched, and removing it later is deleting that folder.
 
 ### Prefer to install ffmpeg yourself?
@@ -77,6 +80,11 @@ with, which is the usual reason a freshly installed ffmpeg still looks "missing"
 **Set up ffmpeg** to re-check.
 
 To point at a specific binary, set `WSG_FFMPEG` to its full path; that overrides everything else.
+
+### Uninstalling
+
+Through Windows "Apps & features" as usual. It asks whether to delete the downloaded models and
+ffmpeg — say **no** if you plan to reinstall, and they are reused instead of downloaded again.
 
 ## Quick start
 
@@ -238,6 +246,19 @@ dotnet build -c Release        # build everything
 dotnet test                    # 68 tests, no ffmpeg or network needed
 dotnet run --project src/WhisperSubtitleGenerator.App
 ```
+
+### Building the installer
+
+```powershell
+.\installeruild-installer.ps1
+```
+
+Publishes self-contained win-x64, drops the Linux/macOS/x86/arm64 native runtimes that a Windows
+x64 build cannot use, and compiles `installer\WhisperSubtitleGenerator.iss` with Inno Setup.
+Output lands in `artifacts\installer`. Needs [Inno Setup](https://jrsoftware.org/isinfo.php)
+(`winget install JRSoftware.InnoSetup`).
+
+A 162 MB payload compresses to roughly a 49 MB setup.
 
 ### Layout
 
