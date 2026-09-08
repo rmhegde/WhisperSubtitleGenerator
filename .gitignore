@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+artifacts/
+TestResults/
+# Whisper GGML models are 75 MB - 3 GB and are downloaded on demand into LocalAppData.
+*.bin

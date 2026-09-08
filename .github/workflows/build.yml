@@ -1,0 +1,29 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    # windows-latest because the app project targets net8.0-windows (WinForms).
+    # The Core library and its tests are plain net8.0 and would run anywhere.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      # Only the Core tests run in CI. They are pure formatting logic with no external
+      # dependencies - no ffmpeg, no model download, no network.
+      - name: Test
+        run: dotnet test tests/WhisperSubtitleGenerator.Tests --no-build -c Release --verbosity normal

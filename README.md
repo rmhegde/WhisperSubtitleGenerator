@@ -1,0 +1,98 @@
+# Whisper Subtitle Generator
+
+Generate `.srt` and `.vtt` subtitles from any audio or video file, locally, on Windows.
+
+Speech recognition runs **entirely on your machine** via [whisper.cpp](https://github.com/ggerganov/whisper.cpp)
+(through [Whisper.net](https://github.com/sandrohanea/whisper.net)). No API key, no upload, no per-minute
+cost, and it works offline once a model is cached.
+
+![status](https://img.shields.io/badge/status-working-brightgreen) ![license](https://img.shields.io/badge/license-MIT-blue)
+
+## What it does
+
+- Point it at one file or a batch, press **Generate subtitles**
+- Picks up any format ffmpeg can read — `.mp4`, `.mkv`, `.mov`, `.webm`, `.mp3`, `.wav`, `.m4a`, `.flac`, …
+- Writes `.srt`, `.vtt`, or both, beside the source file or into a folder you choose
+- **Transcribe** in the source language, or **translate to English** in one pass
+- Five model sizes, from ~75 MB (fast, rough) to ~2.9 GB (slow, best)
+- Cues appear in the log as they are recognised, so a long file shows progress rather than freezing
+- Cancel mid-run; a file that fails does not stop the rest of the batch
+
+## Requirements
+
+- **Windows** with the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+- **ffmpeg** on `PATH` — used to decode media into the exact PCM format Whisper needs:
+
+  ```
+  winget install Gyan.FFmpeg
+  ```
+
+  The app checks for it at startup and tells you if it is missing rather than failing later.
+
+Models are **not bundled**. The one you select is downloaded on first use from Hugging Face and
+cached under `%LOCALAPPDATA%\WhisperSubtitleGenerator\models`, so later runs are instant and offline.
+
+## Build and run
+
+```bash
+git clone https://github.com/ram-wiziiot/WhisperSubtitleGenerator.git
+cd WhisperSubtitleGenerator
+dotnet build -c Release
+dotnet run --project src/WhisperSubtitleGenerator.App
+```
+
+Run the tests with:
+
+```bash
+dotnet test
+```
+
+## Layout
+
+```
+src/WhisperSubtitleGenerator.Core/   net8.0    — no UI dependency, reusable
+  Audio/AudioExtractor.cs                        ffmpeg -> 16 kHz mono PCM
+  Models/WhisperModelCatalog.cs                  model choices, download + cache
+  Subtitles/SubtitleWriter.cs                    SRT / WebVTT rendering
+  Transcription/SubtitleGenerator.cs             ties it together
+src/WhisperSubtitleGenerator.App/    net8.0-windows — WinForms UI
+tests/WhisperSubtitleGenerator.Tests/            18 tests over the formatting logic
+```
+
+The core is deliberately UI-free and targets plain `net8.0`, so a CLI or a cross-platform front end
+can be built on it without touching the transcription code.
+
+## Two things worth knowing if you extend this
+
+**Whisper's input format is not negotiable.** It requires 16 kHz, mono, 16-bit signed PCM. Feeding it
+44.1 kHz or stereo does not raise an error — it returns confident, wrong text, which is much harder to
+diagnose than a crash. Those constants live in `AudioExtractor` and should stay hardcoded.
+
+**SRT and VTT differ in ways that fail silently.** SRT puts a **comma** before the milliseconds,
+WebVTT a **period**; SRT numbers every cue, VTT does not; VTT must open with `WEBVTT`. Give a player
+the wrong separator and it typically shows *no subtitles at all* rather than reporting a problem.
+`SubtitleWriter` handles each format explicitly instead of string-replacing one into the other, and
+the tests pin all three differences.
+
+## Status
+
+Working end to end and verified: synthesized speech at 22 kHz was resampled, transcribed with the
+Tiny model, and written to both formats with correct timestamps and no UTF-8 BOM (a BOM shows up as
+stray characters in the first cue on some players).
+
+Ideas, in rough order of usefulness:
+
+- [ ] Drag-and-drop onto the file list
+- [ ] Remember the last model, language and output folder between runs
+- [ ] Burn-in / hard-sub via ffmpeg
+- [ ] Word-level timestamps and karaoke-style highlighting
+- [ ] A CLI front end over the same core
+- [ ] Speaker diarization
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
+
+Whisper models are released by OpenAI under MIT. `whisper.cpp` and Whisper.net are MIT. ffmpeg is
+LGPL/GPL depending on build and is **not** distributed with this app — it is invoked as an external
+program you install yourself.
