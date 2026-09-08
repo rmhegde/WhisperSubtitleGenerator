@@ -250,7 +250,7 @@ dotnet run --project src/WhisperSubtitleGenerator.App
 ### Building the installer
 
 ```powershell
-.\installeruild-installer.ps1
+.\installer\build-installer.ps1
 ```
 
 Publishes self-contained win-x64, drops the Linux/macOS/x86/arm64 native runtimes that a Windows
