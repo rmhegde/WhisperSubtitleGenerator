@@ -14,6 +14,8 @@ partial class MainForm
     private ComboBox _languageBox = null!;
     private CheckBox _translateCheck = null!;
     private CheckBox _skipExistingCheck = null!;
+    private CheckBox _burnCheck = null!;
+    private ComboBox _burnModeBox = null!;
     private CheckBox _srtCheck = null!;
     private CheckBox _vttCheck = null!;
     private TextBox _outputBox = null!;
@@ -43,6 +45,8 @@ partial class MainForm
         _languageBox       = new ComboBox();
         _translateCheck    = new CheckBox();
         _skipExistingCheck = new CheckBox();
+        _burnCheck         = new CheckBox();
+        _burnModeBox       = new ComboBox();
         _srtCheck          = new CheckBox();
         _vttCheck          = new CheckBox();
         _outputBox         = new TextBox();
@@ -119,34 +123,49 @@ partial class MainForm
         _skipExistingCheck.Text = "Skip files that already have subtitles";
         _skipExistingCheck.Left = 84; _skipExistingCheck.Top = 256; _skipExistingCheck.AutoSize = true;
 
-        var formatLabel = new Label { Text = "Output", Left = 12, Top = 286, AutoSize = true };
-        _srtCheck.Text = ".srt"; _srtCheck.Left = 84; _srtCheck.Top = 284; _srtCheck.AutoSize = true;
-        _srtCheck.Checked = true;
-        _vttCheck.Text = ".vtt"; _vttCheck.Left = 144; _vttCheck.Top = 284; _vttCheck.AutoSize = true;
+        _burnCheck.Text = "Write subtitles into the video";
+        _burnCheck.Left = 84; _burnCheck.Top = 282; _burnCheck.AutoSize = true;
+        _burnCheck.CheckedChanged += OnBurnToggled;
 
-        var folderLabel = new Label { Text = "Folder", Left = 12, Top = 318, AutoSize = true };
-        _outputBox.Left = 84; _outputBox.Top = 314; _outputBox.Width = 448;
+        _burnModeBox.Left = 300; _burnModeBox.Top = 278; _burnModeBox.Width = 232;
+        _burnModeBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        _burnModeBox.Enabled = false;
+        _burnModeBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        _burnModeBox.Items.AddRange(new object[]
+        {
+            "Burn in - permanent, re-encodes (slow)",
+            "Add as a track - instant, switchable"
+        });
+        _burnModeBox.SelectedIndex = 0;
+
+        var formatLabel = new Label { Text = "Output", Left = 12, Top = 312, AutoSize = true };
+        _srtCheck.Text = ".srt"; _srtCheck.Left = 84; _srtCheck.Top = 310; _srtCheck.AutoSize = true;
+        _srtCheck.Checked = true;
+        _vttCheck.Text = ".vtt"; _vttCheck.Left = 144; _vttCheck.Top = 310; _vttCheck.AutoSize = true;
+
+        var folderLabel = new Label { Text = "Folder", Left = 12, Top = 344, AutoSize = true };
+        _outputBox.Left = 84; _outputBox.Top = 340; _outputBox.Width = 448;
         _outputBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         _outputBox.PlaceholderText = "(leave empty to write beside each source file)";
 
-        _outputButton.Text = "Browse..."; _outputButton.Left = 544; _outputButton.Top = 312;
+        _outputButton.Text = "Browse..."; _outputButton.Left = 544; _outputButton.Top = 338;
         _outputButton.Width = 110; _outputButton.Height = 26;
         _outputButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         _outputButton.Click += OnChooseOutput;
 
         // ---- run ----
-        _startButton.Text = "Generate subtitles"; _startButton.Left = 12; _startButton.Top = 352;
+        _startButton.Text = "Generate subtitles"; _startButton.Left = 12; _startButton.Top = 378;
         _startButton.Width = 160; _startButton.Height = 32;
         _startButton.Click += OnStart;
 
-        _cancelButton.Text = "Cancel"; _cancelButton.Left = 180; _cancelButton.Top = 352;
+        _cancelButton.Text = "Cancel"; _cancelButton.Left = 180; _cancelButton.Top = 378;
         _cancelButton.Width = 90; _cancelButton.Height = 32; _cancelButton.Enabled = false;
         _cancelButton.Click += OnCancel;
 
-        _progress.Left = 280; _progress.Top = 358; _progress.Width = 374; _progress.Height = 20;
+        _progress.Left = 280; _progress.Top = 384; _progress.Width = 374; _progress.Height = 20;
         _progress.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
-        _logBox.Left = 12; _logBox.Top = 396; _logBox.Width = 642; _logBox.Height = 190;
+        _logBox.Left = 12; _logBox.Top = 422; _logBox.Width = 642; _logBox.Height = 190;
         _logBox.Multiline = true; _logBox.ReadOnly = true;
         _logBox.ScrollBars = ScrollBars.Vertical;
         _logBox.Font = new Font("Consolas", 8.5f);
@@ -155,8 +174,8 @@ partial class MainForm
         // ---- form ----
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(666, 600);
-        MinimumSize = new Size(560, 520);
+        ClientSize = new Size(666, 626);
+        MinimumSize = new Size(560, 546);
         AllowDrop = true;
         DragEnter += OnDragEnter;
         DragDrop  += OnDragDrop;
@@ -164,7 +183,7 @@ partial class MainForm
         {
             filesLabel, _fileList, _addButton, _addFolderButton, _removeButton, _clearButton, _fileCountLabel,
             modelLabel, _modelBox, langLabel, _languageBox, _translateCheck, _skipExistingCheck,
-            formatLabel, _srtCheck, _vttCheck,
+            _burnCheck, _burnModeBox, formatLabel, _srtCheck, _vttCheck,
             folderLabel, _outputBox, _outputButton,
             _startButton, _cancelButton, _progress, _logBox
         });

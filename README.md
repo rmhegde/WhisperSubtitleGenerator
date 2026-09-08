@@ -1,110 +1,308 @@
 # Whisper Subtitle Generator
 
-Generate `.srt` and `.vtt` subtitles from any audio or video file, locally, on Windows.
+**Generate subtitles for any audio or video file — on your own machine, for free.**
 
-Speech recognition runs **entirely on your machine** via [whisper.cpp](https://github.com/ggerganov/whisper.cpp)
-(through [Whisper.net](https://github.com/sandrohanea/whisper.net)). No API key, no upload, no per-minute
-cost, and it works offline once a model is cached.
+Speech recognition runs entirely locally through [whisper.cpp](https://github.com/ggerganov/whisper.cpp)
+(via [Whisper.net](https://github.com/sandrohanea/whisper.net)). No API key, no account, no upload,
+no per-minute charge, and it keeps working with the network off once a model is cached.
 
-![status](https://img.shields.io/badge/status-working-brightgreen) ![license](https://img.shields.io/badge/license-MIT-blue)
+[![build](https://github.com/ram-wiziiot/WhisperSubtitleGenerator/actions/workflows/build.yml/badge.svg)](https://github.com/ram-wiziiot/WhisperSubtitleGenerator/actions/workflows/build.yml)
+![license](https://img.shields.io/badge/license-MIT-blue)
+![platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
+
+---
+
+## Contents
+
+- [What it does](#what-it-does)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Choosing a model](#choosing-a-model)
+- [Writing subtitles into the video](#writing-subtitles-into-the-video)
+- [Batch processing](#batch-processing)
+- [Languages](#languages)
+- [Where files go](#where-files-go)
+- [Troubleshooting](#troubleshooting)
+- [Building from source](#building-from-source)
+- [How it works](#how-it-works)
+- [Contributing](#contributing)
+- [Licence](#licence)
+
+---
 
 ## What it does
 
-- **Batch queue** — drag and drop files *or whole folders* onto the window, add a folder
-  recursively, or pick files individually. Each row shows its own live status (queued → working →
-  done / FAILED), the cue count and how long it took.
-- **All 100 languages** Whisper supports, not a hand-picked handful. The picker autocompletes, so
-  typing `kan` jumps straight to Kannada.
-- **Translate to English** in the same pass instead of transcribing in the source language
-- **Skip files that already have subtitles**, so re-running a 200-file batch after adding one new
-  episode does not redo 200 transcriptions
-- Writes `.srt`, `.vtt`, or both, beside the source file or into a folder you choose
-- Five model sizes, from ~75 MB (fast, rough) to ~2.9 GB (slow, best)
-- Cues appear in the log as they are recognised, so a long file shows progress rather than freezing
-- Cancel mid-run; a file that fails is marked and the batch carries on
+| | |
+|---|---|
+| **Transcribe** | Any format ffmpeg reads — `.mp4` `.mkv` `.mov` `.webm` `.avi` `.mp3` `.wav` `.m4a` `.flac` `.ogg` … |
+| **Output** | `.srt`, `.vtt`, or both |
+| **Burn into video** | Permanently rendered into the picture, **or** added as a switchable track |
+| **Batch** | Drag in whole folders; per-file status, skip-already-done, cancel any time |
+| **Languages** | All **100** Whisper supports, with auto-detect |
+| **Translate** | Any language → English subtitles in the same pass |
+| **Offline** | After the first model download, nothing leaves your machine |
+
+---
+
+## Install
+
+**1. Install the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)**
+(the *Desktop* one — not the plain runtime).
+
+**2. Install ffmpeg** and make sure it is on `PATH`:
+
+```powershell
+winget install Gyan.FFmpeg
+```
+
+Close and reopen your terminal afterwards, then check:
+
+```powershell
+ffmpeg -version
+```
+
+**3. Build the app** (see [Building from source](#building-from-source)) and run
+`WhisperSubtitleGenerator.exe`.
+
+The app checks for ffmpeg at startup and says so in the log if it is missing, rather than failing
+later once you have queued files.
+
+---
+
+## Quick start
+
+1. **Drag a video onto the window.** Files *and folders* both work — dropping a folder queues every
+   media file inside it.
+2. **Pick a model.** Start with **Base**; see [Choosing a model](#choosing-a-model).
+3. **Pick a language,** or leave it on **Auto-detect**.
+4. **Press Generate subtitles.**
+
+The first run downloads the model you selected — a one-off, cached afterwards. Cues appear in the log
+as they are recognised, so you can watch it work rather than stare at a frozen window.
+
+When it finishes you get `yourvideo.srt` next to `yourvideo.mp4`.
+
+---
+
+## Choosing a model
+
+Bigger models are more accurate and much slower. There is no single right answer — it depends on
+audio quality, accent, and how much you mind fixing mistakes by hand.
+
+| Model | Size | Use it when |
+|---|---|---|
+| **Tiny** | ~75 MB | You want a rough draft fast — clear speech, one speaker |
+| **Base** | ~142 MB | **Good default.** Clean audio, common accents |
+| **Small** | ~466 MB | Background noise, accents, more than one speaker |
+| **Medium** | ~1.5 GB | Accuracy matters more than time |
+| **Large v3** | ~2.9 GB | Best available. Wants plenty of RAM and patience |
+
+Rough guide: **Tiny** is around real-time on a modern CPU; **Large** can take several times the length
+of the recording. Everything runs on CPU — no GPU required.
+
+Models download once from Hugging Face into `%LOCALAPPDATA%\WhisperSubtitleGenerator\models` and are
+reused from then on.
+
+---
+
+## Writing subtitles into the video
+
+Tick **Write subtitles into the video** and choose a mode. Both apply to video only — audio files
+still get their subtitle files.
+
+### Burn in (permanent)
+
+The text is drawn into the pixels. **Plays everywhere** — phones, TVs, Instagram, WhatsApp,
+projectors — and cannot be switched off.
+
+- Requires a full video **re-encode**, so it is slow and costs a little quality
+- Audio is copied untouched, so no extra loss there
+- Output: `yourvideo-subtitled.mp4`
+
+Use this for social media, anything shared widely, or any player you do not control.
+
+### Add as a track (switchable)
+
+The subtitle file is embedded as a selectable track.
+
+- **Near instant** — nothing is re-encoded, and the file barely changes size
+- The viewer can toggle subtitles on and off
+- Needs a player that supports soft subtitles: VLC, MPV and Plex do; many phones and social platforms
+  ignore them entirely
+- Output: `yourvideo-subtitled.mp4` with an extra subtitle stream
+
+Use this for a personal library.
+
+> The original video is never modified, and the app refuses to write over it.
+
+---
+
+## Batch processing
+
+Built for doing a season of episodes in one go.
+
+- **Add files**, **Add folder** (searches subfolders), or **drag and drop** files or folders
+- Each row shows its own **live status** — `queued` → `working...` → `done` / `FAILED` — plus the cue
+  count and how long it took
+- **Skip files that already have subtitles**: re-running a 200-file batch after adding one episode
+  transcribes one file, not 201
+- **One failure does not stop the queue.** A file with no audio track is marked `FAILED` in red and
+  the batch carries on
+- **Cancel** stops after the current file
 - Press **Generate subtitles** again to re-run the whole queue
 
-## Requirements
+Files are processed **one at a time on purpose** — see [How it works](#how-it-works).
 
-- **Windows** with the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
-- **ffmpeg** on `PATH` — used to decode media into the exact PCM format Whisper needs:
+---
 
-  ```
-  winget install Gyan.FFmpeg
-  ```
+## Languages
 
-  The app checks for it at startup and tells you if it is missing rather than failing later.
+All **100** languages Whisper supports, not a handful. The picker autocompletes: type `kan` and it
+jumps to Kannada.
 
-Models are **not bundled**. The one you select is downloaded on first use from Hugging Face and
-cached under `%LOCALAPPDATA%\WhisperSubtitleGenerator\models`, so later runs are instant and offline.
+**Auto-detect** works well on clear audio. Set the language explicitly when the audio is noisy, when
+it is a language Whisper sees rarely, or when a file opens with music or silence — those are where
+detection guesses wrong.
 
-## Build and run
+**Translate to English** produces English subtitles from any source language in the same pass. It is
+one-directional: Whisper can translate *into* English, but not into any other language.
+
+> Accuracy varies a lot by language. English has by far the most training data; smaller languages
+> work noticeably better on the larger models.
+
+---
+
+## Where files go
+
+| What | Where |
+|---|---|
+| Subtitles | Beside the source file, or the **Folder** you choose |
+| Burned video | Beside the source, as `<name>-subtitled.<ext>` |
+| Models | `%LOCALAPPDATA%\WhisperSubtitleGenerator\models` |
+| Temp audio | System temp, deleted automatically even if the run fails |
+
+Subtitles are written as **UTF-8 without a BOM** — a BOM shows up as stray characters in the first
+cue on some hardware players.
+
+---
+
+## Troubleshooting
+
+**"ffmpeg NOT found on PATH"**
+Install it (`winget install Gyan.FFmpeg`), then **restart the app** — a running program does not pick
+up `PATH` changes.
+
+**The first run sits on "Downloading the model"**
+Expected. The model is 75 MB – 2.9 GB depending on your choice, downloaded once. Later runs skip it.
+
+**Transcription is very slow**
+Normal for the larger models on CPU. Try Base or Small — each step up in model size is roughly 2–3×
+slower.
+
+**The text is wrong, or in the wrong language**
+Set the language explicitly instead of Auto-detect, and try a larger model. Noisy audio, heavy accents
+and overlapping speakers are where the small models fall apart.
+
+**"produced no audio. It may have no audio track."**
+Exactly that — the file has nothing to transcribe.
+
+**Subtitles do not appear after "Add as a track"**
+That mode needs a player that supports soft subtitles. Use **Burn in** for anything that has to play
+everywhere.
+
+**Burned subtitles are too small or hard to read**
+Font size, colour and outline live in `BurnOptions` in the Core library. They are not exposed in the
+UI yet — [contributions welcome](#contributing).
+
+---
+
+## Building from source
+
+Needs the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or newer.
 
 ```bash
 git clone https://github.com/ram-wiziiot/WhisperSubtitleGenerator.git
 cd WhisperSubtitleGenerator
-dotnet build -c Release
+
+dotnet build -c Release        # build everything
+dotnet test                    # 54 tests, no ffmpeg or network needed
 dotnet run --project src/WhisperSubtitleGenerator.App
 ```
 
-Run the tests with:
-
-```bash
-dotnet test
-```
-
-## Layout
+### Layout
 
 ```
-src/WhisperSubtitleGenerator.Core/   net8.0    — no UI dependency, reusable
-  Audio/AudioExtractor.cs                        ffmpeg -> 16 kHz mono PCM
-  Models/WhisperModelCatalog.cs                  model choices, download + cache
-  Subtitles/SubtitleWriter.cs                    SRT / WebVTT rendering
-  Transcription/SubtitleGenerator.cs             one file, end to end
-  Transcription/BatchProcessor.cs                sequential queue, per-file state
-  Transcription/WhisperLanguages.cs              all 100 languages
-src/WhisperSubtitleGenerator.App/    net8.0-windows — WinForms UI
-tests/WhisperSubtitleGenerator.Tests/            37 tests over the formatting and batch logic
+src/WhisperSubtitleGenerator.Core/    net8.0 — no UI dependency, reusable
+  Audio/AudioExtractor.cs               ffmpeg -> 16 kHz mono PCM
+  Models/WhisperModelCatalog.cs         model choices, download + cache
+  Subtitles/SubtitleWriter.cs           SRT / WebVTT rendering
+  Transcription/SubtitleGenerator.cs    one file, end to end
+  Transcription/BatchProcessor.cs       the queue, per-file state
+  Transcription/WhisperLanguages.cs     all 100 languages
+  Video/SubtitleBurner.cs               burn-in and soft-mux via ffmpeg
+src/WhisperSubtitleGenerator.App/     net8.0-windows — WinForms UI
+tests/WhisperSubtitleGenerator.Tests/ 54 tests
 ```
 
-The core is deliberately UI-free and targets plain `net8.0`, so a CLI or a cross-platform front end
-can be built on it without touching the transcription code.
+The core targets plain `net8.0`, **not** `net8.0-windows`, so a CLI or a cross-platform front end can
+reuse the whole pipeline without dragging in WinForms.
 
-## Two things worth knowing if you extend this
+---
 
-**Whisper's input format is not negotiable.** It requires 16 kHz, mono, 16-bit signed PCM. Feeding it
-44.1 kHz or stereo does not raise an error — it returns confident, wrong text, which is much harder to
-diagnose than a crash. Those constants live in `AudioExtractor` and should stay hardcoded.
+## How it works
 
-**Batches run one file at a time, on purpose.** Whisper already saturates the CPU on a single
-file, so running several at once makes the whole batch *slower* while multiplying peak memory — the
-large model alone wants several GB. Sequential also keeps the log readable and cancellation
-predictable.
+```
+media file → ffmpeg → 16 kHz mono WAV → whisper.cpp → cues → .srt / .vtt → (optional) ffmpeg burn
+```
 
-**SRT and VTT differ in ways that fail silently.** SRT puts a **comma** before the milliseconds,
-WebVTT a **period**; SRT numbers every cue, VTT does not; VTT must open with `WEBVTT`. Give a player
-the wrong separator and it typically shows *no subtitles at all* rather than reporting a problem.
-`SubtitleWriter` handles each format explicitly instead of string-replacing one into the other, and
-the tests pin all three differences.
+Three decisions are worth knowing before changing anything.
 
-## Status
+**Whisper's input format is not negotiable.** It requires **16 kHz, mono, 16-bit signed PCM**. Give it
+44.1 kHz or stereo and it does *not* raise an error — it returns confident, completely wrong text,
+which is far harder to diagnose than a crash. Those constants are hardcoded in `AudioExtractor` and
+should stay that way.
 
-Working end to end and verified: synthesized speech at 22 kHz was resampled, transcribed with the
-Tiny model, and written to both formats with correct timestamps and no UTF-8 BOM (a BOM shows up as
-stray characters in the first cue on some players).
+**SRT and WebVTT differ in ways that fail silently.** SRT puts a **comma** before the milliseconds,
+WebVTT a **period**; SRT numbers every cue, VTT does not; VTT must open with `WEBVTT`. Hand a player
+the wrong separator and it usually shows *no subtitles at all* rather than complaining.
+`SubtitleWriter` renders each format explicitly instead of string-replacing one into the other.
 
-Ideas, in rough order of usefulness:
+**Batches run one file at a time, deliberately.** Whisper already saturates the CPU on a single file,
+so running several at once makes the whole batch *slower* while multiplying peak memory — the large
+model alone wants several GB. Sequential also keeps the log readable and cancellation predictable.
 
+One more if you touch the burner: **ffmpeg's `subtitles=` filter needs its path escaped.** Inside a
+filtergraph `:` separates options, so a plain `C:\Videos\ep1.srt` is parsed as filter `C` and fails
+with an unhelpful "Unable to open". It has to become `C\:/Videos/ep1.srt`.
+`SubtitleBurner.EscapeForFilter` handles it, with tests pinning it — this is the single most common
+reason subtitle burning fails on Windows.
+
+---
+
+## Contributing
+
+Issues and pull requests welcome. Good first things to pick up:
+
+- [ ] Expose subtitle font size, colour and position in the UI (already in `BurnOptions`)
 - [ ] Remember the last model, language and output folder between runs
-- [ ] Burn-in / hard-sub via ffmpeg
+- [ ] A CLI front end over the same core (the core is already UI-free)
 - [ ] Word-level timestamps and karaoke-style highlighting
-- [ ] A CLI front end over the same core
+- [ ] An editor to fix cues before writing
 - [ ] Speaker diarization
+- [ ] GPU acceleration (Whisper.net ships CUDA and Vulkan runtimes)
+
+Please keep `dotnet test` green — the tests cover subtitle formatting, batch rules and ffmpeg argument
+construction, which is where the fiddly bugs live.
+
+---
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+**MIT** — see [LICENSE](LICENSE).
 
-Whisper models are released by OpenAI under MIT. `whisper.cpp` and Whisper.net are MIT. ffmpeg is
-LGPL/GPL depending on build and is **not** distributed with this app — it is invoked as an external
-program you install yourself.
+| Component | Licence |
+|---|---|
+| Whisper models | MIT (OpenAI) |
+| whisper.cpp / Whisper.net | MIT |
+| ffmpeg | LGPL/GPL depending on build — **not** redistributed; invoked as a program you install |

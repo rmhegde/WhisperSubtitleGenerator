@@ -1,4 +1,5 @@
 using WhisperSubtitleGenerator.Core.Subtitles;
+using WhisperSubtitleGenerator.Core.Video;
 
 namespace WhisperSubtitleGenerator.Core.Transcription;
 
@@ -76,6 +77,7 @@ public sealed class BatchProcessor
         IReadOnlyList<BatchItem> items,
         TranscriptionOptions options,
         bool skipExisting = false,
+        BurnOptions? burn = null,
         IProgress<string>? status = null,
         Action<BatchItem>? onItemChanged = null,
         Action<SubtitleSegment>? onSegment = null,
@@ -118,11 +120,34 @@ public sealed class BatchProcessor
                     .GenerateAsync(item.Path, options, status, onSegment, ct)
                     .ConfigureAwait(false);
 
-                item.State = BatchItemState.Done;
                 item.CueCount = result.Segments.Count;
                 item.Elapsed = result.Elapsed;
                 item.OutputPaths = result.OutputPaths;
                 item.Message = $"{result.Segments.Count} cues in {result.Elapsed.TotalSeconds:F1}s";
+
+                // Burning is a separate step so a failure here does not discard the subtitles that
+                // were just produced - they are already on disk and still useful.
+                if (burn is not null && IsVideo(item.Path) && result.OutputPaths.Count > 0)
+                {
+                    var srt = result.OutputPaths.FirstOrDefault(p =>
+                                  p.EndsWith(".srt", StringComparison.OrdinalIgnoreCase))
+                              ?? result.OutputPaths[0];
+                    try
+                    {
+                        var burned = await new SubtitleBurner()
+                            .BurnAsync(item.Path, srt, burn, status: status, ct: ct)
+                            .ConfigureAwait(false);
+                        item.OutputPaths = result.OutputPaths.Append(burned).ToList();
+                        item.Message += $", burned into {Path.GetFileName(burned)}";
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex)
+                    {
+                        item.Message += $" (subtitles OK, burn failed: {ex.Message})";
+                    }
+                }
+
+                item.State = BatchItemState.Done;
                 done++;
             }
             catch (OperationCanceledException)
@@ -144,6 +169,13 @@ public sealed class BatchProcessor
 
         return new BatchSummary(items.Count, done, failed, skipped, DateTime.UtcNow - started);
     }
+
+    private static readonly string[] VideoExtensions =
+        { ".mp4", ".mkv", ".avi", ".mov", ".webm", ".wmv", ".flv", ".m4v" };
+
+    /// <summary>Burning only makes sense for video; an audio-only file has nothing to draw on.</summary>
+    internal static bool IsVideo(string path) =>
+        VideoExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>True when every requested output format already exists for this input.</summary>
     internal static bool AllOutputsExist(string inputPath, TranscriptionOptions options)

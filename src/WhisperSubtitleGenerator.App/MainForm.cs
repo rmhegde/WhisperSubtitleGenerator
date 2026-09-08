@@ -2,6 +2,7 @@ using WhisperSubtitleGenerator.Core.Audio;
 using WhisperSubtitleGenerator.Core.Models;
 using WhisperSubtitleGenerator.Core.Subtitles;
 using WhisperSubtitleGenerator.Core.Transcription;
+using WhisperSubtitleGenerator.Core.Video;
 
 namespace WhisperSubtitleGenerator.App;
 
@@ -191,6 +192,17 @@ public partial class MainForm : Form
         AddFiles(files);
     }
 
+    private void OnBurnToggled(object? sender, EventArgs e)
+    {
+        _burnModeBox.Enabled = _burnCheck.Checked;
+        if (_burnCheck.Checked)
+        {
+            Log("Burn-in applies to VIDEO files only; audio files still get subtitle files.");
+            // Burning needs an .srt to hand ffmpeg, so make sure one is produced.
+            if (!_srtCheck.Checked) { _srtCheck.Checked = true; Log("Enabled .srt - burning needs one."); }
+        }
+    }
+
     private void OnChooseOutput(object? sender, EventArgs e)
     {
         using var dlg = new FolderBrowserDialog { Description = "Where should subtitle files go?" };
@@ -238,10 +250,18 @@ public partial class MainForm : Form
         int completed = 0;
         var batch = new BatchProcessor();
 
+        BurnOptions? burn = _burnCheck.Checked
+            ? new BurnOptions
+              {
+                  Mode = _burnModeBox.SelectedIndex == 0 ? BurnMode.HardBurn : BurnMode.SoftMux
+              }
+            : null;
+
         var summary = await batch.RunAsync(
             _items,
             options,
             skipExisting: _skipExistingCheck.Checked,
+            burn: burn,
             status: new Progress<string>(Log),
             onItemChanged: item =>
             {
@@ -284,6 +304,8 @@ public partial class MainForm : Form
         _languageBox.Enabled  = !running;
         _translateCheck.Enabled = !running;
         _skipExistingCheck.Enabled = !running;
+        _burnCheck.Enabled    = !running;
+        _burnModeBox.Enabled  = !running && _burnCheck.Checked;
         _fileList.AllowDrop   = !running;
         if (!running) _progress.Value = 0;
     }
