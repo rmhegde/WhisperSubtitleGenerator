@@ -182,6 +182,9 @@ partial class MainForm
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(666, 626);
         MinimumSize = new Size(560, 546);
+        // CenterScreen rather than the WinForms default of WindowsDefaultLocation, which puts the
+        // window near the top-left and cascades it further with each launch.
+        StartPosition = FormStartPosition.CenterScreen;
         AllowDrop = true;
         DragEnter += OnDragEnter;
         DragDrop  += OnDragDrop;
